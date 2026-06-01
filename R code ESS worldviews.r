@@ -48,11 +48,15 @@ values<-c(
 "actcomp")
 
 
-ESS<-read.csv("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS1e06_7-ESS2e03_6-ESS3e03_7-ESS4e04_6-ESS5e03_5-ESS6e02_6-ESS7e02_3-ESS8e02_3-ESS9e03_2-ESS10-ESS10SC-ESS11-subset.csv",header=T)
+#ESS<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS1e06_7-ESS2e03_6-ESS3e03_7-ESS4e04_6-ESS5e03_5-ESS6e02_6-ESS7e02_3-ESS8e02_3-ESS9e03_2-ESS10-ESS10SC-ESS11-subset.csv",header=T)
 
-ESS11<-read.csv("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS11.csv",header=T)
-ESS10<-read.csv("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS10.csv",header=T)
-ESS08<-read.csv("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS8e02_3.csv",header=T)
+ESS7<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS7e02_3.csv",header=T)
+ESS8<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS8e02_3.csv",header=T)
+ESS9<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS9e03_3.csv",header=T)
+ESS10<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS10e03_3.csv",header=T)
+ESS11<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS11e04_1.csv",header=T)
+
+#these are the right editions
 
 sum(values%in%colnames(ESS11))
 values%in%colnames(ESS10)
@@ -132,7 +136,7 @@ allnas<-which(whosna>40)
 ESS_worldviews<-ESS_worldviews[-c(allnas),]
 
 #rest is ten
-formulae<-as.formula(paste("cbind(", paste(values, collapse = ", "), ") ~ 1")) # Replace with your column names
+formulae<-as.formula(paste("cbind(", paste(values, collapse = ", "), ") ~ 1")) #  column names
 
 
 
