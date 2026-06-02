@@ -113,9 +113,15 @@ saveRDS(ESS_worldviews,file="ESS_worldviews_finaleditions.rds")
 values[values%in%colnames(ESS11_worldviews)]
 
 ###let's circle back here - is it poLCA issue?
-#thezeros<-names(which(apply(ESS11_worldviews[values[values%in%colnames(ESS11_worldviews)]],2,function(x) min(x,na.rm=T))==0))
-#ESS_worldviews[thezeros]<-ESS_worldviews[thezeros]+1
+## yes categorical convenience add 1. all values have to be positive integer 
+#positive integers. For poLCA to run, please recode categorical
+#outcome variables to increment from 1 to the maximum number of
+#outcome categories for each variable. 
 
+for (i in 1:length(ESS_worldviews)) {
+thezeros<-names(which(apply(ESS_worldviews[[i]][values[values%in%colnames(ESS_worldviews[[i]])]],2,function(x) min(x,na.rm=T))==0))
+ESS_worldviews[[i]][thezeros]<-ESS_worldviews[[i]][thezeros]+1
+}
 
 
 #only 49 individuals have all NAs, we keep them in
@@ -190,10 +196,7 @@ lca_models <- list()
 bic_values <- numeric(max_clusters)
 chisq <- numeric(max_clusters)
 
-
-
  for (k in 1:max_clusters) {
-   
    
    lca_models[[k]] <- poLCAParallel::poLCA(
      formula    = formulaes[[j]],
@@ -222,6 +225,8 @@ print(j)
 flush.console()
 }
 
+
+save(lca_editions,file="lca_per_round_per_cluster.rds")
 
 ## model selection is not working as usual,let's turn to modularity coefficient
 
