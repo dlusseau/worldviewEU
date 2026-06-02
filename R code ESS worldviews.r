@@ -104,7 +104,8 @@ common_questions <- Reduce(intersect,
 
 ESS_worldviews<-list(ESS11_worldviews,ESS10_worldviews,ESS9_worldviews,ESS8_worldviews,ESS7_worldviews)
 
-saveRDS(ESS_worldviews,file="C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS_worldviews_finaleditions.rds")
+"C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/"
+saveRDS(ESS_worldviews,file="ESS_worldviews_finaleditions.rds")
 
 #all ordinal?
 #yes but values >10 or >5  be turned to NA!! for now - after all refusal to answer is a clue to worldview for some questions but we can't handle it in an ordinal manner....
@@ -172,41 +173,19 @@ n_threads <- max(1L, parallel::detectCores() - 1L)
 # try<-poLCA(formulae, data = ESS_worldviews[values], nclass = 2, maxiter = 1000, 
                            # nrep = 5, na.rm = FALSE)
 
-#removing values with lots of nas 
-whatsna<-apply(ESS_worldviews[,15:55],2,function (x) sum(is.na(x)))
-
-# this is edition related: some questions only asked for some edition
-
-question_in_edition<-data.frame(edition=rep(unique(ESS_worldviews$edition),length(values)),values=rep(values,each=length(unique(ESS_worldviews$edition))),present=FALSE)
-
-for (i in 1:length(values)) {
-flagtab<-table(is.na(ESS_worldviews[,values[i]]),ESS_worldviews$edition)
-
-qed<-names(which(flagtab[rownames(flagtab)==FALSE,]>0))
-question_in_edition$present[question_in_edition$edition%in%qed&question_in_edition$values==values[i]]<-TRUE
-
-}
 
 #one analysis per edition
 
-alleditions<-unique(ESS_worldviews$edition)
-valuesfreq<-array(0,length(alleditions))
+alleditions<-c("ESS11","ESS10","ESS9","ESS8","ESS7")
 
-for (j in 1:length(alleditions)) {
-valuesfreq[j]<-length(question_in_edition$values[question_in_edition$edition==alleditions[j]&question_in_edition$present==TRUE])
-}
+lca_editions<-vector("list",length=length(ESS_worldviews))
 
-lca_editions<-vector("list",length=length(alleditions))
-names(lca_editions)<-alleditions
+names(lca_editions)<-c("ESS11","ESS10","ESS9","ESS8","ESS7")
 
-for (j in 1:length(alleditions)) {
+for (j in 1:length(ESS_worldviews)) {
 
-valueinedition<-question_in_edition$values[question_in_edition$edition==alleditions[j]&question_in_edition$present==TRUE]
-ESS<-subset(ESS_worldviews,edition==alleditions[j])
 
-formulae<-as.formula(paste("cbind(", paste(valueinedition, collapse = ", "), ") ~ 1")) # Replace with your column names
-
-max_clusters <- valuesfreq[j]
+max_clusters <- sum(values%in%colnames(ESS_worldviews[[j]]))
 lca_models <- list()
 bic_values <- numeric(max_clusters)
 chisq <- numeric(max_clusters)
@@ -217,8 +196,8 @@ chisq <- numeric(max_clusters)
    
    
    lca_models[[k]] <- poLCAParallel::poLCA(
-     formula    = formulae,
-     data       = ESS[valueinedition],
+     formula    = formulaes[[j]],
+     data       = ESS_worldviews[[j]],
      nclass     = k,
      maxiter    = 1000,
      nrep       = 5,             # or 10 if you can afford it
@@ -231,7 +210,7 @@ chisq <- numeric(max_clusters)
      graphs     = FALSE
    )
    # na.rm = FALSE for FIML lighten all this for cluster number definition
-																				# will refit with increased tolerance, se calculated and nrep >3
+	# will refit with increased tolerance, se calculated and nrep >3
    bic_values[k] <- lca_models[[k]]$bic
    chisq[k]<-lca_models[[k]]$Chisq
    print(k)
@@ -242,6 +221,7 @@ lca_editions[[j]]<-list(lca_models,bic_values,chisq)
 print(j)
 flush.console()
 }
+
 
 ## model selection is not working as usual,let's turn to modularity coefficient
 
