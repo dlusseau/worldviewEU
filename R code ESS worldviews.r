@@ -57,91 +57,117 @@ ESS10<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/
 ESS11<-read.csv("C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS11e04_1.csv",header=T)
 
 #these are the right editions
+#let's keep them separate to lighten the memory load
 
 sum(values%in%colnames(ESS11))
-values%in%colnames(ESS10)
-values%in%colnames(ESS08)
+sum(values%in%colnames(ESS10))
+sum(values%in%colnames(ESS9))
+sum(values%in%colnames(ESS8))
+sum(values%in%colnames(ESS7))
 
 
-values%in%colnames(ESS)
+##tedious but safe
+
 select<-colnames(ESS11)%in%values
 select[1:13]<-TRUE
 ESS11_worldviews<-ESS11[,select]
-
-nass<-apply(ESS11_worldviews[,14:30],1,function(x) sum(is.na(x)))
 
 select<-colnames(ESS10)%in%values
 select[1:13]<-TRUE
 ESS10_worldviews<-ESS10[,select]
 
-select<-colnames(ESS08)%in%values
+select<-colnames(ESS9)%in%values
 select[1:13]<-TRUE
-ESS08_worldviews<-ESS08[,select]
+ESS9_worldviews<-ESS9[,select]
 
-rm(ESS)
-gc()
-write.csv(ESS_worldviews,file="C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS_worldviews_subset.csv")
-ESS_worldviews<-read.csv("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS_worldviews_subset.csv",header=T)
+select<-colnames(ESS8)%in%values
+select[1:13]<-TRUE
+ESS8_worldviews<-ESS8[,select]
+
+select<-colnames(ESS7)%in%values
+select[1:13]<-TRUE
+ESS7_worldviews<-ESS7[,select]
+
+
+common_questions <- Reduce(intersect, 
+                           list(values,
+                                colnames(ESS7_worldviews),
+                                colnames(ESS8_worldviews),
+                                colnames(ESS9_worldviews),
+                                colnames(ESS10_worldviews),
+                                colnames(ESS11_worldviews)))
+
+common_questions <- Reduce(intersect, 
+                           list(values,
+                                colnames(ESS10_worldviews),
+                                colnames(ESS11_worldviews)))
+
+ESS_worldviews<-list(ESS11_worldviews,ESS10_worldviews,ESS9_worldviews,ESS8_worldviews,ESS7_worldviews)
+
+saveRDS(ESS_worldviews,file="C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/ESS_worldviews_finaleditions.rds")
 
 #all ordinal?
-#yes but values >10 or >5 should be turned to NA!! for now - after all refusal to answer is a clue to worldview for some questions but we can't handle it in an ordinal manner....
+#yes but values >10 or >5  be turned to NA!! for now - after all refusal to answer is a clue to worldview for some questions but we can't handle it in an ordinal manner....
 
-fivers<-c(
-"cptppola",
-"dclenv",
-"ecohenv",
-"gincdif",
-"ginveco",
-"lawobey",
-"polcmpl",
-"psppsgva",
-"scnsenv",
-"lrnobed",
-"elgnuc",
-"inctxff",
-"sbsrnen")
+values[values%in%colnames(ESS11_worldviews)]
 
-ESS_worldviews[fivers][ESS_worldviews[fivers]>5&!is.na(ESS_worldviews[fivers])]<-NA
+###let's circle back here - is it poLCA issue?
+#thezeros<-names(which(apply(ESS11_worldviews[values[values%in%colnames(ESS11_worldviews)]],2,function(x) min(x,na.rm=T))==0))
+#ESS_worldviews[thezeros]<-ESS_worldviews[thezeros]+1
 
-sixers<-c(
-"impenv",
-"impenva",
-"impfree",
-"impfreea",
-"imptrad",
-"imptrada",
-"ipbhprp",
-"ipfrule",
-"ipfrulea",
-"iphlppl",
-"iphlppla",
-"ipstrgv",
-"ipstrgva",
-"likrisk",
-"actcomp")
 
-ESS_worldviews[sixers][ESS_worldviews[sixers]>6&!is.na(ESS_worldviews[sixers])]<-NA
-
-ESS_worldviews[values][ESS_worldviews[values]>10&!is.na(ESS_worldviews[values])]<-NA
-
-thezeros<-names(which(apply(ESS_worldviews[values],2,function(x) min(x,na.rm=T))==0))
-
-ESS_worldviews[thezeros]<-ESS_worldviews[thezeros]+1
 
 #only 49 individuals have all NAs, we keep them in
 # we remove them
-whosna<-apply(ESS_worldviews[,15:55],1,function (x) sum(is.na(x)))
-allnas<-which(whosna>40)
+V11<-values[values%in%colnames(ESS11_worldviews)]
+whosna<-apply(ESS11_worldviews[V11],1,function (x) sum(is.na(x)))
+allnas<-which(whosna==length(V11))
+length(allnas)
+formulae11<-as.formula(paste("cbind(", paste(V11, collapse = ", "), ") ~ 1")) #  column names
 
-ESS_worldviews<-ESS_worldviews[-c(allnas),]
+V10<-values[values%in%colnames(ESS10_worldviews)]
+whosna<-apply(ESS10_worldviews[V10],1,function (x) sum(is.na(x)))
+sum(whosna)
+allnas<-which(whosna==length(V10))
+length(allnas)
+formulae10<-as.formula(paste("cbind(", paste(V10, collapse = ", "), ") ~ 1")) #  column names
 
-#rest is ten
-formulae<-as.formula(paste("cbind(", paste(values, collapse = ", "), ") ~ 1")) #  column names
+V9<-values[values%in%colnames(ESS9_worldviews)]
+whosna<-apply(ESS9_worldviews[V9],1,function (x) sum(is.na(x)))
+sum(whosna)
+allnas<-which(whosna==length(V9))
+length(allnas)
+formulae9<-as.formula(paste("cbind(", paste(V9, collapse = ", "), ") ~ 1")) #  column names
+
+V8<-values[values%in%colnames(ESS8_worldviews)]
+whosna<-apply(ESS8_worldviews[V8],1,function (x) sum(is.na(x)))
+sum(whosna)
+allnas<-which(whosna==length(V8))
+length(allnas)
+formulae8<-as.formula(paste("cbind(", paste(V8, collapse = ", "), ") ~ 1")) #  column names
+
+V7<-values[values%in%colnames(ESS7_worldviews)]
+whosna<-apply(ESS7_worldviews[V7],1,function (x) sum(is.na(x)))
+sum(whosna)
+allnas<-which(whosna==length(V7))
+length(allnas)
+formulae7<-as.formula(paste("cbind(", paste(V7, collapse = ", "), ") ~ 1")) #  column names
 
 
+formulaes<-list(formulae11,formulae10,formulae9,formulae8,formulae7)
+
+saveRDS(formulaes,"formulaes.rds")
 
 #install.packages("poLCA")
 library(poLCA)
+library(poLCAParallel)
+library(parallel)
+
+rm(V7,V8,V9,V10,V11,whosna,nass,ESS7,ESS8,ESS9,ESS10,ESS11)
+
+gc()
+
+n_threads <- max(1L, parallel::detectCores() - 1L)
 
 # try<-poLCA(formulae, data = ESS_worldviews[values], nclass = 2, maxiter = 1000, 
                            # nrep = 5, na.rm = FALSE)
@@ -184,9 +210,27 @@ max_clusters <- valuesfreq[j]
 lca_models <- list()
 bic_values <- numeric(max_clusters)
 chisq <- numeric(max_clusters)
+
+
+
  for (k in 1:max_clusters) {
-   lca_models[[k]] <- poLCA(formulae, data = ESS[valueinedition], nclass = k, maxiter = 1000, 
-                            nrep = 1, na.rm = FALSE,calc.se=FALSE,tol = 1e-6)  # na.rm = FALSE for FIML lighten all this for cluster number definition
+   
+   
+   lca_models[[k]] <- poLCAParallel::poLCA(
+     formula    = formulae,
+     data       = ESS[valueinedition],
+     nclass     = k,
+     maxiter    = 1000,
+     nrep       = 5,             # or 10 if you can afford it
+     n.thread   = n_threads,
+     na.rm      = FALSE,
+     calc.se    = FALSE,
+     calc.chisq = FALSE,         # skip expensive goodness-of-fit in search stage
+     tol        = 1e-6,
+     verbose    = FALSE,
+     graphs     = FALSE
+   )
+   # na.rm = FALSE for FIML lighten all this for cluster number definition
 																				# will refit with increased tolerance, se calculated and nrep >3
    bic_values[k] <- lca_models[[k]]$bic
    chisq[k]<-lca_models[[k]]$Chisq
@@ -278,7 +322,13 @@ formulae<-as.formula(paste("cbind(", paste(valueinedition, collapse = ", "), ") 
 
 k <- best_clus$clus[j]
 
-lca_editions_best[[j]] <- poLCA(formulae, data = ESS[valueinedition], nclass = k, maxiter = 1000, 
+
+
+#lca_models[[best_k]] <- poLCAParallel::poLCAParallel.goodnessfit(lca_models[[best_k]])
+#best_chisq <- lca_models[[best_k]]$Chisq
+
+
+lca_editions_best[[j]] <- poLCAParallel::poLCA(formulae, data = ESS[valueinedition], nclass = k, maxiter = 1000, 
                             nrep = 3, na.rm = FALSE,calc.se=TRUE,tol = 1e-10)  # na.rm = FALSE for FIML lighten all this for cluster number definition
    print(j)
    flush.console()
