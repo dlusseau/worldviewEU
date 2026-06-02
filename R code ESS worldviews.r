@@ -104,13 +104,52 @@ common_questions <- Reduce(intersect,
 
 ESS_worldviews<-list(ESS11_worldviews,ESS10_worldviews,ESS9_worldviews,ESS8_worldviews,ESS7_worldviews)
 
-"C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/"
+#"C:/Users/davlu/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/data/ESS/"
 saveRDS(ESS_worldviews,file="ESS_worldviews_finaleditions.rds")
+
+ESS_worldviews<-readRDS(file="ESS_worldviews_finaleditions.rds")
 
 #all ordinal?
 #yes but values >10 or >5  be turned to NA!! for now - after all refusal to answer is a clue to worldview for some questions but we can't handle it in an ordinal manner....
 
+
+
 values[values%in%colnames(ESS11_worldviews)]
+
+
+fivers <- c(
+  "cptppola",
+  "dclenv",
+  "ecohenv",
+  "gincdif",
+  "ginveco",
+  "lawobey",
+  "polcmpl",
+  "psppsgva",
+  "scnsenv",
+  "lrnobed",
+  "elgnuc",
+  "inctxff",
+  "sbsrnen"
+)
+
+sixers <- c(
+  "impenv",
+  "impenva",
+  "impfree",
+  "impfreea",
+  "imptrad",
+  "imptrada",
+  "ipbhprp",
+  "ipfrule",
+  "ipfrulea",
+  "iphlppl",
+  "iphlppla",
+  "ipstrgv",
+  "ipstrgva",
+  "likrisk",
+  "actcomp"
+)
 
 ###let's circle back here - is it poLCA issue?
 ## yes categorical convenience add 1. all values have to be positive integer 
@@ -119,13 +158,29 @@ values[values%in%colnames(ESS11_worldviews)]
 #outcome categories for each variable. 
 
 for (i in 1:length(ESS_worldviews)) {
+
+#############################################
+##### 2 Jun 15.38
+  
+  
+  ESS_worldviews[[i]][fivers][ESS_worldviews[[i]][fivers] > 5 & !is.na(ESS_worldviews[[i]][fivers])] <- NA
+
+  ESS_worldviews[[i]][sixers][ESS_worldviews[[i]][sixers] > 6 & !is.na(ESS_worldviews[[i]][sixers])] <- NA
+  
+  ESS_worldviews[[i]][values][ESS_worldviews[[i]][values] > 10 & !is.na(ESS_worldviews[[i]][values])] <- NA
+
+  #######################
+  
 thezeros<-names(which(apply(ESS_worldviews[[i]][values[values%in%colnames(ESS_worldviews[[i]])]],2,function(x) min(x,na.rm=T))==0))
 ESS_worldviews[[i]][thezeros]<-ESS_worldviews[[i]][thezeros]+1
 }
 
 
-#only 49 individuals have all NAs, we keep them in
-# we remove them
+write.csv(thezeros,file="thoseminus1toadjustbeforeinterpretation.csv")
+saveRDS(ESS_worldviews,file="ESS_worldviews_finaleditions.rds")
+
+gc()
+
 V11<-values[values%in%colnames(ESS11_worldviews)]
 whosna<-apply(ESS11_worldviews[V11],1,function (x) sum(is.na(x)))
 allnas<-which(whosna==length(V11))
@@ -183,6 +238,7 @@ n_threads <- max(1L, parallel::detectCores() - 1L)
 #one analysis per edition
 
 alleditions<-c("ESS11","ESS10","ESS9","ESS8","ESS7")
+valuesfreq<-unlist(lapply(ESS_worldviews,function(x) sum(values%in%colnames(x))))
 
 lca_editions<-vector("list",length=length(ESS_worldviews))
 
@@ -228,10 +284,14 @@ flush.console()
 
 save(lca_editions,file="lca_per_round_per_cluster.rds")
 
+load("lca_per_round_per_cluster.rds")
+
+(lca_editions[[1]][[2]])
+
+
 ## model selection is not working as usual,let's turn to modularity coefficient
-
-
 ###let's get the mod calculator
+##no no
 
 # clustermod<-function(AI,clusass){
 # #estimate modularity of each topological modules in a network
@@ -259,19 +319,18 @@ save(lca_editions,file="lca_per_round_per_cluster.rds")
 
 
 #no we are going for a measure based on the probability to belong to a cluster
-
 #https://arxiv.org/pdf/1411.4257 has an interesting idea to integrate it to BIC to combine cluster number selection and the separation measure it offers
 
 
-cluster.select.df<-data.frame(editions=as.character(rep(alleditions,valuesfreq)),
+cluster.select.df<-data.frame(round=as.character(rep(alleditions,valuesfreq)),dim=rep(1:5,valuesfreq),
 								clusters=unlist(apply(as.data.frame(valuesfreq),1,function (x) seq(1,x,1))),
 								bic=NA,entropy=NA,entropy.std=NA,max.prob=NA,icl=NA)
-i=10
+
 
 for (i in 1:nrow(cluster.select.df)) {
-cluster.select.df$bic[i]<-lca_editions[[cluster.select.df$editions[i]]][[2]][cluster.select.df$clusters[i]]
+cluster.select.df$bic[i]<-lca_editions[[cluster.select.df$dim[i]]][[2]][cluster.select.df$clusters[i]]
 
-mattemp<-lca_editions[[cluster.select.df$editions[i]]][[1]][[cluster.select.df$clusters[i]]]["posterior"]$posterior
+mattemp<-lca_editions[[cluster.select.df$dim[i]]][[1]][[cluster.select.df$clusters[i]]]["posterior"]$posterior
 lmattemp<-log(mattemp)
 lmattemp[lmattemp==-Inf]<-0
 cluster.select.df$entropy[i]<-sum(mattemp*lmattemp)
@@ -286,104 +345,168 @@ cluster.select.df$icl<-cluster.select.df$bic-cluster.select.df$entropy
 
 library(ggplot2)
 
-ggplot(cluster.select.df,aes(x=clusters,y=entropy.std,colour=editions))+
-geom_line()+
-theme_minimal()+ylim(.7,.8)
+ggplot(cluster.select.df,aes(x=clusters,y=entropy.std,colour=round))+
+  geom_line()+
+  scale_color_manual(values=c(
+                     "#0048BA",
+                     "#E11845",
+                     "#009E73",
+                     "#E69F00",
+                     "#D55E00"))+
+  theme_minimal()+
+  ylim(.7,.9)
 
 
-best_clus<-data.frame(editions=as.character(alleditions),clus=c(3,3,3,3,3,3,4,4,3,3))
+best_clus<-data.frame(round=as.character(alleditions),
+                      apriori_clus=c(4,4,4,4,4),
+                      bic_clus=c(6,6,8,8,6), #from fit
+                      icl_clus=c(5,6,4,5,3)) #from graph
 
 
+lca_editions_best_apriori<-vector("list",length=length(alleditions))
+names(lca_editions_best_apriori)<-alleditions
 
-lca_editions_best<-vector("list",length=length(alleditions))
-names(lca_editions_best)<-alleditions
+lca_editions_best_bic<-vector("list",length=length(alleditions))
+names(lca_editions_best_bic)<-alleditions
 
-for (j in 1:length(alleditions)) {
-
-valueinedition<-question_in_edition$values[question_in_edition$edition==alleditions[j]&question_in_edition$present==TRUE]
-ESS<-subset(ESS_worldviews,edition==alleditions[j])
-
-formulae<-as.formula(paste("cbind(", paste(valueinedition, collapse = ", "), ") ~ 1")) # Replace with your column names
-
-k <- best_clus$clus[j]
+lca_editions_best_icl<-vector("list",length=length(alleditions))
+names(lca_editions_best_icl)<-alleditions
 
 
+#for (j in 1:length(ESS_worldviews)) {
+
+  for (j in 1:1) {
+    
+formulae<-formulaes[[j]]
+kap <- best_clus$apriori_clus[j]
+kbic <- best_clus$bic_clus[j]
+kicl <- best_clus$icl_clus[j]
 
 #lca_models[[best_k]] <- poLCAParallel::poLCAParallel.goodnessfit(lca_models[[best_k]])
 #best_chisq <- lca_models[[best_k]]$Chisq
 
 
-lca_editions_best[[j]] <- poLCAParallel::poLCA(formulae, data = ESS[valueinedition], nclass = k, maxiter = 1000, 
-                            nrep = 3, na.rm = FALSE,calc.se=TRUE,tol = 1e-10)  # na.rm = FALSE for FIML lighten all this for cluster number definition
+lca_editions_best_apriori[[j]] <- poLCAParallel::poLCA(formulae, 
+                                                formula    = formulaes[[j]],
+                                                data       = ESS_worldviews[[j]],
+                                                nclass     = kap,
+                                                maxiter    = 1000,
+                                                nrep       = 5,             # or 10 if you can afford it
+                                                n.thread   = n_threads,
+                                                na.rm      = FALSE,
+                                                calc.se    = TRUE,
+                                                calc.chisq = FALSE,         # skip expensive goodness-of-fit in search stage
+                                                tol        = 1e-7,
+                                                verbose    = FALSE,
+                                                graphs     = FALSE)  # na.rm = FALSE for FIML lighten all this for cluster number definition
+
+lca_editions_best_bic[[j]] <- poLCAParallel::poLCA(formulae, 
+                                                       formula    = formulaes[[j]],
+                                                       data       = ESS_worldviews[[j]],
+                                                       nclass     = kbic,
+                                                       maxiter    = 1000,
+                                                       nrep       = 5,             # or 10 if you can afford it
+                                                       n.thread   = n_threads,
+                                                       na.rm      = FALSE,
+                                                       calc.se    = TRUE,
+                                                       calc.chisq = FALSE,         # skip expensive goodness-of-fit in search stage
+                                                       tol        = 1e-7,
+                                                       verbose    = FALSE,
+                                                       graphs     = FALSE)  # na.rm = FALSE for FIML lighten all this for cluster number definition
+
+
+lca_editions_best_icl[[j]] <- poLCAParallel::poLCA(formulae, 
+                                                       formula    = formulaes[[j]],
+                                                       data       = ESS_worldviews[[j]],
+                                                       nclass     = kicl,
+                                                       maxiter    = 1000,
+                                                       nrep       = 5,             # or 10 if you can afford it
+                                                       n.thread   = n_threads,
+                                                       na.rm      = FALSE,
+                                                       calc.se    = TRUE,
+                                                       calc.chisq = FALSE,         # skip expensive goodness-of-fit in search stage
+                                                       tol        = 1e-7,
+                                                       verbose    = FALSE,
+                                                       graphs     = FALSE)  # na.rm = FALSE for FIML lighten all this for cluster number definition
+
    print(j)
    flush.console()
 }
 
+save(lca_editions_best_apriori,lca_editions_best_bic,lca_editions_best_icl,file="ESS11only_best_models_each_round_3selections.Rdata")
 
-save(lca_editions_best,question_in_edition,file="C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/best_models_each_edition.Rdata")
+save(lca_editions_best_apriori,lca_editions_best_bic,lca_editions_best_icl,file="best_models_each_round_3selections.Rdata")
 ##we need to use ln not log_2 for entropy to have on the same scale as BIC
 
-
-modprobs<-lca_editions_best[[1]]["probs"]
-v1<-modprobs[[1]][[2]]
-
-library(reshape2)
-
-v1m<-melt(v1)
-
-ggplot(v1m,aes(x=Var2,y=value,fill=Var1))+
-geom_bar(stat="identity",position="dodge")+
-coord_polar()+
-theme_minimal()
+# 
+# modprobs_apriori<-lca_editions_best_apriori[[1]]["probs"]
+# v1_apriori<-modprobs_apriori[[1]][[2]]
+# 
+# modprobs_bic<-lca_editions_best_bic[[1]]["probs"]
+# v1_bic<-modprobs_bic[[1]][[2]]
+# 
+# modprobs_icl<-lca_editions_best_icl[[1]]["probs"]
+# v1_icl<-modprobs_icl[[1]][[2]]
+# 
+# library(reshape2)
+# 
+# v1m_apriori<-melt(v1_apriori)
+# v1m_bic<-melt(v1_bic)
+# v1m_icl<-melt(v1_icl)
+# 
+# 
+# ggplot(v1m,aes(x=Var2,y=value,fill=Var1))+
+# geom_bar(stat="identity",position="dodge")+
+# coord_polar()+
+# theme_minimal()
 
 #weighted average (by probability) response - median response expected
-apply(v1,1,cumsum)
+apply(v1_apriori,1,cumsum)
 
-model_interpret<-question_in_edition[question_in_edition$present==TRUE,]
-model_interpret$class1<-NA
-model_interpret$class2<-NA
-model_interpret$class3<-NA
-model_interpret$class4<-NA
-model_interpret$scale<-NA
+str(lca_editions_best_icl)
 
-model_interpret$edition<-as.character(model_interpret$edition)
-editions<-unique(model_interpret$edition)
+names(lca_editions_best_icl[[1]]$y)
 
 
-for (i in 1:nrow(model_interpret)) {
-ed<-model_interpret$edition[i]
-val<-model_interpret$values[i]
+model_interpret_icl<-data.frame(values=names(lca_editions_best_icl[[1]]$y))
+model_interpret_icl$class1<-NA
+model_interpret_icl$class2<-NA
+model_interpret_icl$class3<-NA
+model_interpret_icl$class4<-NA
+model_interpret_icl$class5<-NA
+model_interpret_icl$scale<-NA
 
-modprobs<-lca_editions_best[[ed]]["probs"]
+model_interpret_icl$round<-"ESS11"
+
+
+for (i in 1:nrow(model_interpret_icl)) {
+ed<-model_interpret_icl$round[i]
+val<-model_interpret_icl$values[i]
+
+modprobs<-lca_editions_best_icl[[1]]["probs"]
 v1<-modprobs[[1]][val]
-model_interpret$scale[i]<-ncol(v1[[val]])
+model_interpret_icl$scale[i]<-ncol(v1[[val]])
 
 valcum<-apply(v1[[val]],1,cumsum)
 
 
-if (nrow(v1[[val]])==4) {
-model_interpret[i,c("class1","class2","class3","class4")]<-as.numeric(apply(valcum,2,function(x) which.min(abs(x-0.5))))
-
-} else {
-
-model_interpret[i,c("class1","class2","class3")]<-as.numeric(apply(valcum,2,function(x) which.min(abs(x-0.5))))
+model_interpret_icl[i,2:(ncol(model_interpret_icl)-2)]<-as.numeric(apply(valcum,2,function(x) which.min(abs(x-0.5))))
 
 }
-}
+
 
 library(tidyverse)
-model_interpret<-model_interpret%>%
-					arrange(desc(edition),desc(values)) 
+model_interpret_icl<-model_interpret_icl%>%
+					arrange(desc(round),desc(values)) 
 
 
 library(ggpubr)
 
 
+save()
 #rose plots
 
-for (i in 1:length(editions)) {
-
-edition1.class1<-ggplot(subset(model_interpret,edition==editions[i]),aes(x=values,y=class1/scale))+
+ESS11.class1<-ggplot((model_interpret_icl),aes(x=values,y=class1/scale))+
 geom_bar(stat="identity",fill="dark green")+
 coord_polar()+
 theme_minimal()+
@@ -392,7 +515,7 @@ ylim(0,1)+
 theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())+
 theme(axis.text.x = element_text(size = 10))
 
-edition1.class2<-ggplot(subset(model_interpret,edition==editions[i]),aes(x=values,y=class2/scale))+
+ESS11.class2<-ggplot((model_interpret_icl),aes(x=values,y=class2/scale))+
 geom_bar(stat="identity",fill="dark red")+
 coord_polar()+
 theme_minimal()+
@@ -401,7 +524,7 @@ ylim(0,1)+
 theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())+
 theme(axis.text.x = element_text(size = 10))
 
-edition1.class3<-ggplot(subset(model_interpret,edition==editions[i]),aes(x=values,y=class3/scale))+
+ESS11.class3<-ggplot((model_interpret_icl),aes(x=values,y=class3/scale))+
 geom_bar(stat="identity",fill="dark blue")+
 coord_polar()+
 theme_minimal()+
@@ -410,7 +533,7 @@ ylim(0,1)+
 theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())+
 theme(axis.text.x = element_text(size = 10))
 
-edition1.class4<-ggplot(subset(model_interpret,edition==editions[i]),aes(x=values,y=class4/scale))+
+ESS11.class4<-ggplot((model_interpret_icl),aes(x=values,y=class4/scale))+
 geom_bar(stat="identity",fill="dark orange")+
 coord_polar()+
 theme_minimal()+
@@ -420,48 +543,36 @@ theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())+
 theme(axis.text.x = element_text(size = 10))
 
 
-if (is.na(model_interpret$class4[model_interpret$edition==editions[i]][1])) {
-graph1<-ggarrange(edition1.class1,edition1.class2,edition1.class3,ncol=4,nrow=1)
+ESS11.class5<-ggplot((model_interpret_icl),aes(x=values,y=class5/scale))+
+  geom_bar(stat="identity",fill="dark orange")+
+  coord_polar()+
+  theme_minimal()+
+  xlab("")+ylab("")+
+  ylim(0,1)+
+  theme(axis.text.y = element_blank(),axis.ticks.y = element_blank())+
+  theme(axis.text.x = element_text(size = 10))
+
+graph1<-ggarrange(ESS11.class1,ESS11.class2,ESS11.class3,ESS11.class4,ESS11.class5,ncol=5,nrow=1)
 fig1<-annotate_figure(graph1,
-						fig.lab = paste0("ESS edition ",editions[i]),
+						fig.lab = paste0("ESS edition ",11),
 						fig.lab.pos = "top.left",
 						fig.lab.size=12,
 						fig.lab.face="bold")
   
-png(paste("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/rose_plot_clusters_interpretations_edition_",editions[i],".png"),units="cm",res=200,width=56,height=14)
+png(paste("results/rose_plot_clusters_interpretations_round_",11,"_icl.png"),units="cm",res=200,width=56,height=14)
 print(fig1)
 dev.off()
-
-} else {
-
-graph1<-ggarrange(edition1.class1,edition1.class2,edition1.class3,edition1.class4,ncol=4,nrow=1)
-fig1<-annotate_figure(graph1,
-						fig.lab = paste0("ESS edition ",editions[i]),
-						fig.lab.pos = "top.left",
-						fig.lab.size=12,
-						fig.lab.face="bold")
-						
-png(paste("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/rose_plot_clusters_interpretations_edition_",editions[i],".png"),units="cm",res=200,width=56,height=14)
-print(fig1)
-dev.off()
-
-}
-
-
-}
 
 
 #+
 #scale_fill_brewer(palette="Greens")
 
-ESS_worldviews$cluster<-NA
+ESS11_worldviews$cluster<-NA
 
-for (i in 1:length(editions)) {
-
-ESS_worldviews$cluster[ESS_worldviews$edition==editions[i]] <-  lca_editions_best[[editions[i]]]["predclass"][[1]]
+ESS11_worldviews$cluster <-  lca_editions_best_icl[[1]]["predclass"][[1]]
 
 
-}
+
 
 write.csv(ESS_worldviews,file="C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/ESS_worldviews_subset_classfied.csv")
 
@@ -478,18 +589,18 @@ library(rnaturalearthdata)
 library(sf)
 library(countrycode)
 
-for (i in 1:length(editions)) {
-
-if(max(ESS_worldviews$cluster[ESS_worldviews$edition==editions[i]])==3) {
-country.tab<-(table(ESS_worldviews$cntry[ESS_worldviews$edition==editions[i]],ESS_worldviews$cluster[ESS_worldviews$edition==editions[i]]))
+country.tab<-(table(ESS11_worldviews$cntry,ESS11_worldviews$cluster))
 
 country_df <- data.frame(
   iso =rownames(country.tab),
   class1 = country.tab[,1],
   class2 = country.tab[,2],
-  class3 = country.tab[,3]
+  class3 = country.tab[,3],
+  class4 = country.tab[,4],
+  class5 = country.tab[,5]
+  
 )
-country_df$size<-apply(country.tab[,1:3],1,sum)
+country_df$size<-apply(country.tab[,1:5],1,sum)
 country_df$size.std<-country_df$size/max(country_df$size)
 
 country_df$country<-countrycode(country_df$iso, "iso2c", "country.name")
@@ -516,7 +627,7 @@ mappy<-ggplot() +
   geom_sf(data = localsf, fill = "lightgrey", color = "white") +
   # Add pie charts at centroids
   geom_scatterpie(data = country_df, aes(x = X, y = Y,r = 2*sqrt(size.std)),
-                  cols = c("class1", "class2", "class3"),
+                  cols = c("class1", "class2", "class3","class4","class5"),
                     
                   color = "black", alpha = 0.8) +
   # Set coordinate system and limits for Europe
@@ -524,80 +635,22 @@ mappy<-ggplot() +
   # Customize theme
   theme_minimal() +
   theme(panel.background = element_rect(fill = "lightblue", color = NA)) +  # Optional: ocean color
-  labs(title = paste0("cluster prevalence by country ESS edition ",editions[i]),
+  labs(title = paste0("cluster prevalence by country ESS round ",11),
        x = NULL, y = NULL) +
   # Optional: customize pie colors
-  scale_fill_manual(values = c("class1" = "dark green", "class2" = "dark red", "class3" = "dark blue"),
+  scale_fill_manual(values = c("class1" = "dark green", "class2" = "dark red", "class3" = "dark blue",
+                               "class4" = "dark orange",
+                               "class5" = "yellow"),
                     name = "Proportions")
 
 
 
  
-png(paste("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/map_prevalence_edition_",editions[i],".png"),units="cm",res=200,width=25,height=20)
+png(paste("results/map_prevalence_round_",11,"_icl.png"),units="cm",res=200,width=25,height=20)
 print(mappy)
 dev.off()
 
-} else {
 
-country.tab<-(table(ESS_worldviews$cntry[ESS_worldviews$edition==editions[i]],ESS_worldviews$cluster[ESS_worldviews$edition==editions[i]]))
-
-country_df <- data.frame(
-  iso =rownames(country.tab),
-  class1 = country.tab[,1],
-  class2 = country.tab[,2],
-  class3 = country.tab[,3],
-  class4 = country.tab[,4]
-)
-country_df$size<-apply(country.tab[,1:4],1,sum)
-country_df$size.std<-country_df$size/max(country_df$size)
-
-country_df$country<-countrycode(country_df$iso, "iso2c", "country.name")
-
-# Get European country shapes as sf object
-world <- ne_countries(returnclass = "sf", scale = "medium")
-
-cropbox<-  c(xmin = -27.5, ymin = 30.3, xmax = 41.3, ymax = 71.3)
-localsf<-st_crop(world, st_bbox(cropbox))
-
-
-centroids <- st_centroid(localsf$geometry)
-centroids <- st_sf(country = localsf$admin, geometry = centroids)
-centroids <- cbind(centroids, st_coordinates(centroids$geometry))
-
-country_df <- merge(country_df, as.data.frame(centroids)[, c("country", "X", "Y")], 
-                 by.x = "country", by.y = "country", all.x = TRUE)
-
-# Plot the map with pie charts
-mappy<-ggplot() +
-  # Plot the base map 
-  geom_sf(data = localsf, fill = "lightgrey", color = "white") +
-  # Add pie charts at centroids
-  geom_scatterpie(data = country_df, aes(x = X, y = Y,r = 2*sqrt(size.std)),
-                  cols = c("class1", "class2", "class3","class4"),
-                    
-                  color = "black", alpha = 0.8) +
-  # Set coordinate system and limits for Europe
-  coord_sf(xlim = c(-27.5, 41.3), ylim = c(30.3, 71.3), expand = FALSE) +
-  # Customize theme
-  theme_minimal() +
-  theme(panel.background = element_rect(fill = "lightblue", color = NA)) +  # Optional: ocean color
-  labs(title = paste0("cluster prevalence by country ESS edition ",editions[i]),
-       x = NULL, y = NULL) +
-  # Optional: customize pie colors
-  scale_fill_manual(values = c("class1" = "dark green", "class2" = "dark red", "class3" = "dark blue","class4"="dark orange"),
-                    name = "Proportions")
-
-
-
- 
-png(paste("C:/Users/David/OneDrive - Danmarks Tekniske Universitet/SABRES/5pt1 ms/map_prevalence_edition_",editions[i],".png"),units="cm",res=200,width=25,height=20)
-print(mappy)
-dev.off()
-
-}
-
-
-}
 
 
 
